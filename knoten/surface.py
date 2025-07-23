@@ -3,8 +3,12 @@ A set of classes that represent the target surface. Each class implements the
 get_height and get_radius functions for computing the height and radius respectively
 at a given ground location (geocentric latitude and longitude).
 """
+from typing import overload
 
 import numpy as np
+
+from knoten.utils import reproject
+
 from plio.io.io_gdal import GeoDataset
 
 class EllipsoidDem:
@@ -30,7 +34,7 @@ class EllipsoidDem:
         if semi_minor is not None:
             self.c = semi_minor
 
-    def get_height(self, lat, lon):
+    def get_lla_height(self, lat, lon):
         """
         Get the height above the ellipsoid at a ground location
 
@@ -43,7 +47,25 @@ class EllipsoidDem:
         """
         return 0
 
-    def get_radius(self, lat, lon):
+    def get_ecef_height(self, x: float, y: float, z: float) -> float:
+        """
+        Get the height above the ellipsoid at a ground location
+
+        Parameters
+        ----------
+        lat : float
+              The geocentric latitude in degrees
+        lon : float
+              The longitude in degrees
+        """
+        lat, lon, _ = reproject([x, y, z], 
+                                 self.a, 
+                                 self.c, 
+                                 'geocent', 
+                                 'latlon')
+        return self.get_lla_height(lat, lon)
+
+    def get_lla_radius(self, lat, lon):
         """
         Get the radius at a ground location
 
@@ -65,6 +87,24 @@ class EllipsoidDem:
         denom += self.a * self.a * self.b * self.b * sin_lat * sin_lat
         radius = (self.a * self.b * self.c) / np.sqrt(denom)
         return radius
+
+    def get_ecef_radius(self, x: float, y: float, z: float) -> float:
+        """
+        Get the height above the ellipsoid at a ground location
+
+        Parameters
+        ----------
+        lat : float
+              The geocentric latitude in degrees
+        lon : float
+              The longitude in degrees
+        """
+        lat, lon, _ = reproject([x, y, z], 
+                                 self.a, 
+                                 self.c, 
+                                 'geocent', 
+                                 'latlon')
+        return self.get_lla_radius(lat, lon)
 
 class GdalDem(EllipsoidDem):
     """
@@ -95,7 +135,7 @@ class GdalDem(EllipsoidDem):
         self.dem = GeoDataset(dem)
         self.dem_type = dem_type
 
-    def get_raster_value(self, lat, lon):
+    def get_lla_raster_value(self, lat: float, lon: float) -> float:
         """
         Get the value of the dem raster at a ground location
 
@@ -112,7 +152,25 @@ class GdalDem(EllipsoidDem):
             return None
         return value
 
-    def get_height(self, lat, lon):
+    def get_ecef_raster_value(self, x: float, y: float, z: float) -> float:
+        """
+        Get the value of the dem raster at a ground location
+
+        Parameters
+        ----------
+        lat : float
+              The geocentric latitude in degrees
+        lon : float
+              The longitude in degrees
+        """
+        lat, lon, _ = reproject([x, y, z], 
+                                 self.semi_major, 
+                                 self.semi_minor, 
+                                 'geocent', 
+                                 'latlon')
+        return self.get_lla_raster_value(lat, lon)
+
+    def get_lla_height(self, lat: float, lon: float) -> float:
         """
         Get the height above the ellipsoid at a ground location
 
@@ -123,12 +181,12 @@ class GdalDem(EllipsoidDem):
         lon : float
               The longitude in degrees
         """
-        height = self.get_raster_value(lat, lon)
+        height = self.get_lla_raster_value(lat, lon)
         if self.dem_type == 'radius' and height is not None:
-            height -= super().get_radius(lat, lon)
+            height -= super().get_lla_radius(lat, lon)
         return height
 
-    def get_radius(self, lat, lon):
+    def get_lla_radius(self, lat: float, lon: float) -> float:
         """
         Get the radius at a ground location
 
@@ -139,7 +197,7 @@ class GdalDem(EllipsoidDem):
         lon : float
               The longitude in degrees
         """
-        radius = self.get_raster_value(lat, lon)
+        radius = self.get_lla_raster_value(lat, lon)
         if self.dem_type == 'height':
-            radius += super().get_radius(lat, lon)
+            radius += super().get_lla_radius(lat, lon)
         return radius

@@ -218,27 +218,20 @@ def _(dem: EllipsoidDem, image_pt, camera, max_its = 20, tolerance = 0.0001, dem
         image_pt = csmapi.ImageCoord(*image_pt)
 
     intersection = generate_ground_point(0.0, image_pt, camera)
-    iterations = 0
-    semi_major, semi_minor = get_radii(camera)
-  
-    source_proj = f'+proj=cart +a={semi_major} +b={semi_minor}'
-    dest_proj = f'+proj=lonlat +a={semi_major} +b={semi_minor}'
-    transformer = utils.create_transformer(source_proj, dest_proj)
-    while iterations != max_its:
-        lon, lat, _ = transformer.transform(intersection.x, 
-                                              intersection.y, 
-                                              intersection.z,
-                                              errcheck=True)
-        height = dem.get_height(lat, lon)
+    iterations = 1
+    converged = False
+    while not converged:
+        height = dem.get_ecef_height(intersection.x, intersection.y, intersection.z)
         if height is None:
-            raise ValueError(f'No DEM height at {lat}, {lon}')
-
-        next_intersection = generate_ground_point(float(height), image_pt, camera)
+            raise ValueError(f'No DEM height at {intersection.x}, {intersection.y}, {intersection.z}')
+        next_intersection = camera.imageToGround(image_pt, float(height))
         dist = _compute_intersection_distance(intersection, next_intersection)
         intersection = next_intersection
-        iterations += 1
         if dist < tolerance:
-            break
+            converged = True
+        iterations += 1
+        if iterations > max_its:
+            converged = True
     return intersection
 
 def generate_image_coordinate(ground_pt, camera):
@@ -267,8 +260,8 @@ def _compute_intersection_distance(intersection, next_intersection):
            in one of the three planes (x,y,z)
     """
     return max(abs(intersection.x - next_intersection.x),
-            abs(intersection.y - next_intersection.y),
-            abs(intersection.z - next_intersection.z))
+               abs(intersection.y - next_intersection.y),
+               abs(intersection.z - next_intersection.z))
 
 def generate_boundary(isize, npoints=10):
     """

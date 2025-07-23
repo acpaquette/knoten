@@ -57,7 +57,7 @@ def test_generate_ground_point_with_dtm(mock_get_radii,
 def test_generate_ground_point_with_dtm_ndv(mock_get_radii,
                                             mock_pyproj_transformer,
                                             mock_sensor, pt, mock_dem):
-    mock_dem.get_height.return_value = None
+    mock_dem.get_ecef_height.return_value = None
     with pytest.raises(ValueError):
         res = csm.generate_ground_point(mock_dem, pt, mock_sensor)
 

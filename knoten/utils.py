@@ -304,9 +304,6 @@ def reproject(record, semi_major, semi_minor, source_proj, dest_proj, **kwargs):
     Transformed coordinates as y, x, z
 
     """
-    transformer = pyproj.Transformer.from_crs(f'+proj={source_proj} +a={semi_major} +b={semi_minor}',
-                                              f'+proj={dest_proj} +a={semi_major} +b={semi_minor}',
-                                              always_xy=True)
     source_proj = f'+proj={source_proj} +a={semi_major} +b={semi_minor}'
     dest_proj = f'+proj={dest_proj} +a={semi_major} +b={semi_minor}'
     transformer = create_transformer(source_proj, dest_proj)
